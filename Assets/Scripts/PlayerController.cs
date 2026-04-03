@@ -4,8 +4,8 @@ using TMPro;
 
 public class PlayerController : MonoBehaviour
 {
-    public float speed = 0;
-    public float jumpForce  = 5f;
+    public float speed = 10f;
+    public float jumpForce = 7f;
 
     private Rigidbody rb;
     private float movementX;
@@ -17,16 +17,25 @@ public class PlayerController : MonoBehaviour
     public TextMeshProUGUI winText;
 
     public Transform groundCheck;
-    public float groundDistance = 0.2f;
+    public float groundDistance = 0.4f;
     public LayerMask groundMask;
-    private bool isGrounded;
-    private bool canDoubleJump;
 
+    private bool isGrounded;
+
+    public int maxJumps = 2;
+    private int jumpsRemaining;
+
+    public float coyoteTime = 0.15f;
+    private float coyoteTimeCounter;
+
+    public float jumpBufferTime = 0.15f;
+    private float jumpBufferCounter;
 
     void Start()
     {
         rb = GetComponent<Rigidbody>();
         count = 0;
+        jumpsRemaining = maxJumps;
         SetCountText();
         winTextObject.SetActive(false);
     }
@@ -43,8 +52,32 @@ public class PlayerController : MonoBehaviour
         isGrounded = Physics.CheckSphere(groundCheck.position, groundDistance, groundMask);
 
         if (isGrounded)
-        {        
-            canDoubleJump = true;
+        {
+            coyoteTimeCounter = coyoteTime;
+            jumpsRemaining = maxJumps;
+        }
+        else
+        {
+            coyoteTimeCounter -= Time.deltaTime;
+        }
+
+        jumpBufferCounter -= Time.deltaTime;
+
+        if (jumpBufferCounter > 0f)
+        {
+            if (isGrounded || coyoteTimeCounter > 0f)
+            {
+                Jump();
+                jumpsRemaining = maxJumps - 1;
+                jumpBufferCounter = 0f;
+                coyoteTimeCounter = 0f;
+            }
+            else if (jumpsRemaining > 0)
+            {
+                Jump();
+                jumpsRemaining--;
+                jumpBufferCounter = 0f;
+            }
         }
     }
 
@@ -52,27 +85,18 @@ public class PlayerController : MonoBehaviour
     {
         if (value.isPressed)
         {
-            if (isGrounded)
-            {
-                Jump();
-            }
-            else if (canDoubleJump)
-            {
-                Jump();
-                canDoubleJump = false;
-            }
+            jumpBufferCounter = jumpBufferTime;
         }
     }
 
     void Jump()
     {
-        rb.linearVelocity = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
-        rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
+        rb.linearVelocity = new Vector3(rb.linearVelocity.x, jumpForce, rb.linearVelocity.z);
     }
 
     void FixedUpdate()
     {
-        Vector3 movement = new Vector3(movementX, 0.0f, movementY);
+        Vector3 movement = new Vector3(movementX, 0f, movementY);
         rb.AddForce(movement * speed);
     }
 
@@ -104,7 +128,6 @@ public class PlayerController : MonoBehaviour
         {
             winTextObject.SetActive(true);
             winText.text = "You Win!!";
-
             Destroy(GameObject.FindGameObjectWithTag("Enemy"));
         }
     }
